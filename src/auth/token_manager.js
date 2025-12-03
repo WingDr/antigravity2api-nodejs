@@ -175,9 +175,13 @@ class TokenManager {
         }
         if (token.temp_forbidden) {
           this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
+          token.usedCount = 0; // 切换之后重置使用次数
           continue;
         }
-        if (token.usedCount >= config.tokenReuse.singleTokenUseCount) this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
+        if (token.usedCount >= config.tokenReuse.singleTokenUseCount) {
+          this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
+          token.usedCount = 0; // 切换之后重置使用次数
+        }
         token.usedCount++;
         return token;
       } catch (error) {
@@ -190,9 +194,11 @@ class TokenManager {
           log.warn(`账号 ${accountNum}仍在429中，请稍后再试`)
           if (this.tokens.length === 0) return null;
           this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
+          token.usedCount = 0; // 切换之后重置使用次数
         } else {
           log.error(`Token ${this.currentIndex + 1} 刷新失败:`, error.message);
           this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
+          token.usedCount = 0; // 切换之后重置使用次数
         }
       }
     }

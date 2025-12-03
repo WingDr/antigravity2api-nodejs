@@ -122,10 +122,21 @@ class TokenManager {
     this.currentIndex = this.currentIndex % Math.max(this.tokens.length, 1);
   }
 
-  set429(token) {
-    log.warn(`Token ...${token.projectId.slice(-8)} 因 429 被禁用两分钟`)
+  set429(token, errorBody={}) {
+    const details = errorBody.error?.details;
+    const retryDelay = details?.find(detail => detail.retryDelay)?.retryDelay || "120s";
+    log.warn(`Token ...${token.projectId.slice(-8)} 因 429 被禁用${retryDelay}`)
     token.temp_forbidden = true;
-    token.forbidden_until = Date.now() + 1000 * 120; // 禁用两分钟
+    // 需要把带s后缀的时间转换成毫秒
+    const delayMatch = retryDelay.match(/(\d+)(s|m|h)/);
+    let delayMs = 120000; // 默认两分钟
+    if (delayMatch) {
+      const [, value, unit] = delayMatch;
+      if (unit === 's') delayMs = parseInt(value);
+      else if (unit === 'm') delayMs = parseInt(value) * 60 * 1000;
+      else if (unit === 'h') delayMs = parseInt(value) * 60 * 60 * 1000;
+    }
+    token.forbidden_until = Date.now() + delayMs;
     this.currentIndex = this.currentIndex % Math.max(this.tokens.length, 1);
   }
 

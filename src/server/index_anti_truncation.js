@@ -235,6 +235,7 @@ app.post('/v1/chat/completions', async (req, res) => {
 
             let chunkBuffer = ""; // 当前请求的缓冲
 
+            logger.info("流式反截断: 使用token: " + token.projectId);
             await generateAssistantResponse(requestBody, token, (data) => {
               if (data.type === 'tool_calls') {
                 hasToolCall = true;
@@ -361,6 +362,7 @@ app.post('/v1/chat/completions', async (req, res) => {
             requestBody.request.contents = newContents;
           }
 
+          logger.info("非流式反截断: 使用token: " + token.projectId);
           const response = await generateAssistantResponseNoStream(requestBody, token);
 
           // 出现429后更换token

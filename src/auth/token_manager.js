@@ -121,6 +121,30 @@ class TokenManager {
     this.currentIndex = this.currentIndex % Math.max(this.tokens.length, 1);
   }
 
+  set429(token) {
+    log.warn(`Token ...${token.access_token.slice(-8)} 因 429 被禁用一小时`)
+    token.temp_forbidden = true;
+    token.forbidden_until = Date.now() + 3600000; // 禁用一小时
+    this.saveToFile();
+    this.currentIndex = this.currentIndex % Math.max(this.tokens.length, 1);
+  }
+
+  is429(token) {
+    return token.temp_forbidden && token.forbidden_until && token.forbidden_until > Date.now();
+  }
+
+  is429Released(token) {
+    return token.temp_forbidden && token.forbidden_until && token.forbidden_until <= Date.now();
+  }
+
+  unset429(token) {
+    log.info('正在恢复因 429 被禁用的token...');
+    token.temp_forbidden = false;
+    token.forbidden_until = null;
+    this.saveToFile();
+    this.initialize();
+  }
+
   async getToken() {
     if (this.tokens.length === 0) return null;
 
@@ -134,6 +158,13 @@ class TokenManager {
         if (this.isExpired(token)) {
           await this.refreshToken(token);
         }
+        if (this.is429Released(token)) {
+          this.unset429(token);
+        }
+        if (token.temp_forbidden) {
+          this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
+          continue;
+        }
         this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
         return token;
       } catch (error) {
@@ -142,6 +173,10 @@ class TokenManager {
           log.warn(`账号 ${accountNum}: Token 已失效或错误，已自动禁用该账号`);
           this.disableToken(token);
           if (this.tokens.length === 0) return null;
+        } else if (error.statusCode === 429) {
+          log.warn(`账号 ${accountNum}仍在429中，请稍后再试`)
+          if (this.tokens.length === 0) return null;
+          this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
         } else {
           log.error(`Token ${this.currentIndex + 1} 刷新失败:`, error.message);
           this.currentIndex = (this.currentIndex + 1) % this.tokens.length;

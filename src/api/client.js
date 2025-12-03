@@ -78,6 +78,9 @@ async function handleApiError(error, token) {
   if (status === 403) {
     tokenManager.disableCurrentToken(token);
     throw new Error(`该账号没有使用权限，已自动禁用。错误详情: ${errorBody}`);
+  } else if (status === 429) {
+    tokenManager.set429(token);
+    throw new Error(`API请求太频繁，请稍后再试。错误详情: ${errorBody}`);
   }
   
   throw new Error(`API请求失败 (${status}): ${errorBody}`);

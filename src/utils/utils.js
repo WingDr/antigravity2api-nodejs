@@ -200,6 +200,12 @@ function generateRequestBody(openaiMessages, modelName, parameters, openaiTools,
     userAgent: "antigravity"
   }
 }
+
+function changeRequestBodyToken(requestBody, token) { 
+  requestBody.project = token.projectId;
+  requestBody.request.sessionId = token.sessionId;
+  return requestBody;
+}
 function getDefaultIp() {
   const interfaces = os.networkInterfaces();
   if (interfaces.WLAN) {
@@ -220,5 +226,6 @@ function getDefaultIp() {
 export {
   generateRequestId,
   generateRequestBody,
+  changeRequestBodyToken,
   getDefaultIp
 }

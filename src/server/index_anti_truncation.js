@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateAssistantResponse, generateAssistantResponseNoStream, getAvailableModels, closeRequester } from '../api/client.js';
-import { generateRequestBody } from '../utils/utils.js';
+import { generateRequestBody, changeRequestBodyToken } from '../utils/utils.js';
 import logger from '../utils/logger.js';
 import config from '../config/config.js';
 import tokenManager from '../auth/token_manager.js';
@@ -128,7 +128,7 @@ app.post('/v1/chat/completions', async (req, res) => {
     if (!messages) {
       return res.status(400).json({ error: 'messages is required' });
     }
-    const token = await tokenManager.getToken();
+    let token = await tokenManager.getToken();
     if (!token) {
       throw new Error('没有可用的token，请运行 npm run login 获取token');
     }
@@ -268,6 +268,13 @@ app.post('/v1/chat/completions', async (req, res) => {
                 }
               }
             });
+
+            // 出现429后更换token
+            if (tokenManager.is429(token)) {
+              logger.warn("反截断: 429 错误，更换 token...");
+              token = await getToken();
+              requestBody = changeRequestBodyToken(requestBody, token);
+            }
 
             // 当前请求结束
             if (hasToolCall) break;

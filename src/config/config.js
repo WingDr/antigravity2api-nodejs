@@ -71,8 +71,12 @@ const config = {
   useNativeAxios: process.env.USE_NATIVE_AXIOS !== 'false',
   timeout: parseInt(process.env.TIMEOUT) || 30000,
   proxy: process.env.PROXY || null,
+  retry429: {
+    retryMaxCount: parseInt(process.env.RETRY_MAX_COUNT) || 3,
+    retryDelay: parseInt(process.env.RETRY_DELAY) || 3000
+  },
   tokenReuse: {
-    retryCount: parseInt(process.env.RETRY_COUNT) || 3,
+    retryMaxCount: parseInt(process.env.RETRY_MAX_COUNT) || 3,
     retryDelay: parseInt(process.env.RETRY_DELAY) || 3000,
     singleTokenUseCount: parseInt(process.env.SINGLE_TOKEN_USE_COUNT) || 10
   },

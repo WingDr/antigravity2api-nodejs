@@ -79,6 +79,7 @@ async function handleApiError(error, token) {
     tokenManager.disableCurrentToken(token);
     throw new Error(`该账号没有使用权限，已自动禁用。错误详情: ${errorBody}`);
   } else if (status === 429) {
+    // 其实是多次429了，那就先等会儿
     tokenManager.set429(token, errorBody);
     throw new Error(`API请求太频繁，请稍后再试。错误详情: ${errorBody}`);
   }
@@ -145,7 +146,7 @@ function parseAndEmitStreamChunk(line, state, callback) {
 
 // ==================== 导出函数 ====================
 
-export async function generateAssistantResponse(requestBody, token, callback) {
+export async function generateAssistantResponse(requestBody, token, callback, retryCount=0) {
   
   const headers = buildHeaders(token);
   const state = { thinkingStarted: false, toolCalls: [] };
@@ -169,6 +170,16 @@ export async function generateAssistantResponse(requestBody, token, callback) {
         response.data.on('error', reject);
       });
     } catch (error) {
+      // 如果是429要重试几次
+      const status = error.response?.status || error.status || 'Unknown';
+      if (status === 429) {
+        await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
+        if (retryCount < config.tokenReuse.retryMaxCount) {
+          await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
+        } else {
+          throw new Error('API请求太频繁，请稍后再试。');
+        }
+      }
       await handleApiError(error, token);
     }
   } else {
@@ -185,6 +196,16 @@ export async function generateAssistantResponse(requestBody, token, callback) {
           .onError(reject);
       });
     } catch (error) {
+      // 如果是429要重试几次
+      const status = error.response?.status || error.status || 'Unknown';
+      if (status === 429) {
+        await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
+        if (retryCount < config.tokenReuse.retryMaxCount) {
+          await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
+        } else {
+          throw new Error('API请求太频繁，请稍后再试。');
+        }
+      }
       await handleApiError(error, token);
     }
   }

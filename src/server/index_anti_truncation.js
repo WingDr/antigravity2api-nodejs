@@ -13,7 +13,7 @@ const app = express();
 
 // --- 反截断配置 (Anti-Truncation Config) ---
 const DONE_MARKER = "[done]";
-const MAX_CONTINUATION_ATTEMPTS = config.tokenReuse.retryCount || 3;
+const MAX_CONTINUATION_ATTEMPTS = config.tokenReuse.retryMaxCount || 3;
 const CONTINUATION_PROMPT = `
 生成以下随机序列，保证本次输出与上次输出的非一致性：
 {{random::a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,shdia}}{{random::a,b,c,d,ss,shauhuwi,e,f,g,h,i,j,k,l,m,n,o,p,q}}{{random::a,b,c,d,e,sabduwa,f,g,h,i,j,k,l,m,n,o,p,q}}{{random::a,sahuwgduawyiav,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q}}

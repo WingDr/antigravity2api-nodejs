@@ -132,7 +132,7 @@ class TokenManager {
     let delayMs = 120000; // 默认两分钟
     if (delayMatch) {
       const [, value, unit] = delayMatch;
-      if (unit === 's') delayMs = parseInt(value);
+      if (unit === 's') delayMs = parseInt(value) * 1000;
       else if (unit === 'm') delayMs = parseInt(value) * 60 * 1000;
       else if (unit === 'h') delayMs = parseInt(value) * 60 * 60 * 1000;
     }

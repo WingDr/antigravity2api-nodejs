@@ -170,14 +170,16 @@ export async function generateAssistantResponse(requestBody, token, callback, re
         response.data.on('error', reject);
       });
     } catch (error) {
-      // 如果是429要重试几次
+      // 如果是429或500，则要重试几次
       const status = error.response?.status || error.status || 'Unknown';
-      if (status === 429) {
+      if (status == 429 || status == 500) {
         await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
         if (retryCount < config.tokenReuse.retryMaxCount) {
           await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
-        } else {
+        } else if (status == 429) {
           throw new Error('API请求太频繁，请稍后再试。');
+        } else {
+          throw new Error('API请求失败：Internal Server Error');
         }
       }
       await handleApiError(error, token);
@@ -198,12 +200,14 @@ export async function generateAssistantResponse(requestBody, token, callback, re
     } catch (error) {
       // 如果是429要重试几次
       const status = error.response?.status || error.status || 'Unknown';
-      if (status === 429) {
+      if (status === 429 || status === 500) {
         await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
         if (retryCount < config.tokenReuse.retryMaxCount) {
           await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
-        } else {
+        } else if (status === 429) {
           throw new Error('API请求太频繁，请稍后再试。');
+        } else {
+          throw new Error('API请求失败：Internal Server Error');
         }
       }
       await handleApiError(error, token);

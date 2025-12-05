@@ -280,7 +280,7 @@ app.post('/v1/chat/completions', async (req, res) => {
 
             // 出现429后更换token
             if (tokenManager.is429(token)) {
-              logger.warn("反截断: 429 错误，更换 token...");
+              logger.warn("反截断: 持续性 429 错误，更换 token...");
               token = await tokenManager.getToken();
               requestBody = changeRequestBodyToken(requestBody, token);
             }
@@ -378,7 +378,7 @@ app.post('/v1/chat/completions', async (req, res) => {
 
           // 出现429后更换token
           if (tokenManager.is429(token)) {
-            logger.warn("反截断: 429 错误，更换 token...");
+            logger.warn("反截断: 持续性 429 错误，更换 token...");
             token = await tokenManager.getToken();
             requestBody = changeRequestBodyToken(requestBody, token);
           }

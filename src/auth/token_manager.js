@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import { log } from '../utils/logger.js';
-import { generateProjectId, generateSessionId } from '../utils/idGenerator.js';
+import { generateSessionId, generateProjectId } from '../utils/idGenerator.js';
 import config from '../config/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,36 +20,45 @@ class TokenManager {
     this.initialize();
   }
 
-  initialize() {
+  async initialize() {
     try {
       log.info('正在初始化token管理器...');
       const data = fs.readFileSync(this.filePath, 'utf8');
       let tokenArray = JSON.parse(data);
-      let needSave = false;
-      
-      tokenArray = tokenArray.map(token => {
-        if (!token.projectId) {
-          token.projectId = generateProjectId();
-          needSave = true;
-        }
-        return token;
-      });
-      
-      if (needSave) {
-        fs.writeFileSync(this.filePath, JSON.stringify(tokenArray, null, 2), 'utf8');
-      }
       
       this.tokens = tokenArray.filter(token => token.enable !== false).map(token => ({
         ...token,
         sessionId: generateSessionId(),
         usedCount: 0
       }));
+      
       this.currentIndex = 0;
       log.info(`成功加载 ${this.tokens.length} 个可用token`);
     } catch (error) {
       log.error('初始化token失败:', error.message);
       this.tokens = [];
     }
+  }
+
+  async fetchProjectId(token) {
+    const response = await axios({
+      method: 'POST',
+      url: 'https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:loadCodeAssist',
+      headers: {
+        'Host': 'daily-cloudcode-pa.sandbox.googleapis.com',
+        'User-Agent': 'antigravity/1.11.9 windows/amd64',
+        'Authorization': `Bearer ${token.access_token}`,
+        'Content-Type': 'application/json',
+        'Accept-Encoding': 'gzip'
+      },
+      data: JSON.stringify({ metadata: { ideType: 'ANTIGRAVITY' } }),
+      timeout: config.timeout,
+      proxy: config.proxy ? (() => {
+        const proxyUrl = new URL(config.proxy);
+        return { protocol: proxyUrl.protocol.replace(':', ''), host: proxyUrl.hostname, port: parseInt(proxyUrl.port) };
+      })() : false
+    });
+    return response.data?.cloudaicompanionProject;
   }
 
   isExpired(token) {
@@ -158,7 +167,7 @@ class TokenManager {
   async getToken() {
     if (this.tokens.length === 0) return null;
 
-    const startIndex = this.currentIndex;
+    //const startIndex = this.currentIndex;
     const totalTokens = this.tokens.length;
 
     for (let i = 0; i < totalTokens; i++) {
@@ -180,12 +189,33 @@ class TokenManager {
           this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
           token.usedCount = 0; // 切换之后重置使用次数
         }
-        token.usedCount++;
+        if (!token.projectId) {
+          if (config.skipProjectIdFetch) {
+            token.projectId = generateProjectId();
+            this.saveToFile();
+            log.info(`...${token.access_token.slice(-8)}: 使用随机生成的projectId: ${token.projectId}`);
+          } else {
+            try {
+              const projectId = await this.fetchProjectId(token);
+              if (projectId === undefined) {
+                log.warn(`...${token.access_token.slice(-8)}: 无资格获取projectId，跳过保存`);
+                this.disableToken(token);
+                if (this.tokens.length === 0) return null;
+                continue;
+              }
+              token.projectId = projectId;
+              this.saveToFile();
+            } catch (error) {
+              log.error(`...${token.access_token.slice(-8)}: 获取projectId失败:`, error.message);
+              this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
+              continue;
+            }
+          }
+        }
         return token;
       } catch (error) {
         if (error.statusCode === 403 || error.statusCode === 400) {
-          const accountNum = this.currentIndex + 1;
-          log.warn(`账号 ${accountNum}: Token 已失效或错误，已自动禁用该账号`);
+          log.warn(`...${token.access_token.slice(-8)}: Token 已失效或错误，已自动禁用该账号`);
           this.disableToken(token);
           if (this.tokens.length === 0) return null;
         } else if (error.statusCode === 429) {
@@ -194,7 +224,7 @@ class TokenManager {
           this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
           token.usedCount = 0; // 切换之后重置使用次数
         } else {
-          log.error(`Token ${this.currentIndex + 1} 刷新失败:`, error.message);
+          log.error(`...${token.access_token.slice(-8)} 刷新失败:`, error.message);
           this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
           token.usedCount = 0; // 切换之后重置使用次数
         }

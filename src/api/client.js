@@ -4,6 +4,7 @@ import config from '../config/config.js';
 import { generateToolCallId } from '../utils/idGenerator.js';
 import AntigravityRequester from '../AntigravityRequester.js';
 import { saveBase64Image } from '../utils/imageStorage.js';
+import logger from '../utils/logger.js';
 
 // 请求客户端：优先使用 AntigravityRequester，失败则降级到 axios
 let requester = null;
@@ -158,6 +159,10 @@ export async function generateAssistantResponse(requestBody, token, callback, re
     buffer = lines.pop(); // 保留最后一行（可能不完整）
     lines.forEach(line => parseAndEmitStreamChunk(line, state, callback));
   };
+
+  if (retryCount) {
+    logger.info(`429第${retryCount}次重试`);
+  }
   
   if (useAxios) {
     try {
@@ -172,17 +177,11 @@ export async function generateAssistantResponse(requestBody, token, callback, re
     } catch (error) {
       // 如果是429或500，则要重试几次
       const status = error.response?.status || error.status || 'Unknown';
-      if (status == 429 || status == 500) {
+      if ((status == 429 || status == 500) && retryCount < config.tokenReuse.retryMaxCount) {
+        logger.info(`出现错误状态码${status}，尝试重试...`);
         await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
-        if (retryCount < config.tokenReuse.retryMaxCount) {
-          await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
-        } else if (status == 429) {
-          throw new Error('API请求太频繁，请稍后再试。');
-        } else {
-          throw new Error('API请求失败：Internal Server Error');
-        }
-      }
-      await handleApiError(error, token);
+        await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
+      } else await handleApiError(error, token);
     }
   } else {
     try {
@@ -200,17 +199,11 @@ export async function generateAssistantResponse(requestBody, token, callback, re
     } catch (error) {
       // 如果是429要重试几次
       const status = error.response?.status || error.status || 'Unknown';
-      if (status === 429 || status === 500) {
+      if ((status == 429 || status == 500) && retryCount < config.tokenReuse.retryMaxCount) {
+        logger.info(`出现错误状态码${status}，尝试重试...`);
         await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
-        if (retryCount < config.tokenReuse.retryMaxCount) {
-          await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
-        } else if (status === 429) {
-          throw new Error('API请求太频繁，请稍后再试。');
-        } else {
-          throw new Error('API请求失败：Internal Server Error');
-        }
-      }
-      await handleApiError(error, token);
+        await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
+      } else await handleApiError(error, token);
     }
   }
 }

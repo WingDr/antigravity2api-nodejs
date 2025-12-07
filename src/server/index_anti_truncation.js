@@ -6,6 +6,7 @@ import { generateRequestBody, changeRequestBodyToken } from '../utils/utils.js';
 import logger from '../utils/logger.js';
 import config from '../config/config.js';
 import tokenManager from '../auth/token_manager.js';
+import adminRouter from '../routes/admin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

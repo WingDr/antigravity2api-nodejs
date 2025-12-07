@@ -39,19 +39,20 @@ ${DONE_MARKER}
 注意：${DONE_MARKER} 必须单独占一行，前面不要有任何其他字符。
 这个规则对于确保输出完整性极其重要，请严格遵守。`;
 
-// --- 工具函数 ---
-
+// 工具函数：生成响应元数据
 const createResponseMeta = () => ({
   id: `chatcmpl-${Date.now()}`,
   created: Math.floor(Date.now() / 1000)
 });
 
+// 工具函数：设置流式响应头
 const setStreamHeaders = (res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 };
 
+// 工具函数：构建流式数据块
 const createStreamChunk = (id, created, model, delta, finish_reason = null) => ({
   id,
   object: 'chat.completion.chunk',
@@ -60,10 +61,12 @@ const createStreamChunk = (id, created, model, delta, finish_reason = null) => (
   choices: [{ index: 0, delta, finish_reason }]
 });
 
+// 工具函数：写入流式数据
 const writeStreamData = (res, data) => {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 };
 
+// 工具函数：结束流式响应
 const endStream = (res, id, created, model, finish_reason) => {
   writeStreamData(res, createStreamChunk(id, created, model, {}, finish_reason));
   res.write('data: [DONE]\n\n');
@@ -78,7 +81,12 @@ const removeDoneMarker = (text) => {
 };
 
 app.use(express.json({ limit: config.security.maxRequestSize }));
+// 静态文件服务
 app.use('/images', express.static(path.join(__dirname, '../../public/images')));
+app.use(express.static(path.join(__dirname, '../../public')));
+
+// 管理路由
+app.use('/admin', adminRouter);
 
 app.use((err, req, res, next) => {
   if (err.type === 'entity.too.large') {
@@ -88,7 +96,8 @@ app.use((err, req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  if (!req.path.startsWith('/images' || !req.path.startsWith('/favicon.ico'))) {
+  const ignorePaths = ['/images', '/favicon.ico', '/.well-known'];
+  if (!ignorePaths.some(path => req.path.startsWith(path))) {
     const start = Date.now();
     res.on('finish', () => {
       logger.request(req.method, req.path, res.statusCode, Date.now() - start);
@@ -145,8 +154,9 @@ app.post('/v1/chat/completions', async (req, res) => {
       requestBody.request.generationConfig = {
         candidateCount: 1,
       };
-      requestBody.requestType = "image_gen";
-      requestBody.request.systemInstruction.parts[0].text += "现在你作为绘画模型聚焦于帮助用户生成图片";
+      requestBody.requestType="image_gen";
+      //requestBody.request.systemInstruction.parts[0].text += "现在你作为绘画模型聚焦于帮助用户生成图片";
+      delete requestBody.request.systemInstruction;
       delete requestBody.request.tools;
       delete requestBody.request.toolConfig;
     } 

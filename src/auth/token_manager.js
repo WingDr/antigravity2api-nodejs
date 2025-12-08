@@ -187,7 +187,6 @@ class TokenManager {
     log.info('正在恢复因 429 被禁用的token...');
     token.temp_forbidden = false;
     token.forbidden_until = null;
-    this.initialize();
   }
 
   async getToken() {

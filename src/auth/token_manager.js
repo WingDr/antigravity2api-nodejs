@@ -5,12 +5,10 @@ import axios from 'axios';
 import { log } from '../utils/logger.js';
 import { generateSessionId, generateProjectId } from '../utils/idGenerator.js';
 import config from '../config/config.js';
+import { OAUTH_CONFIG } from '../constants/oauth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const CLIENT_ID = '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com';
-const CLIENT_SECRET = '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';
 
 class TokenManager {
   constructor(filePath = path.join(__dirname,'..','..','data' ,'accounts.json')) {
@@ -88,8 +86,8 @@ class TokenManager {
   async refreshToken(token) {
     log.info('正在刷新token...');
     const body = new URLSearchParams({
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
+      client_id: OAUTH_CONFIG.CLIENT_ID,
+      client_secret: OAUTH_CONFIG.CLIENT_SECRET,
       grant_type: 'refresh_token',
       refresh_token: token.refresh_token
     });
@@ -97,7 +95,7 @@ class TokenManager {
     try {
       const response = await axios({
         method: 'POST',
-        url: 'https://oauth2.googleapis.com/token',
+        url: OAUTH_CONFIG.TOKEN_URL,
         headers: {
           'Host': 'oauth2.googleapis.com',
           'User-Agent': 'Go-http-client/1.1',
@@ -115,25 +113,35 @@ class TokenManager {
       token.access_token = response.data.access_token;
       token.expires_in = response.data.expires_in;
       token.timestamp = Date.now();
-      this.saveToFile();
+      this.saveToFile(token);
       return token;
     } catch (error) {
       throw { statusCode: error.response?.status, message: error.response?.data || error.message };
     }
   }
 
-  saveToFile() {
+  saveToFile(tokenToUpdate = null) {
     try {
       const data = fs.readFileSync(this.filePath, 'utf8');
       const allTokens = JSON.parse(data);
       
-      this.tokens.forEach(memToken => {
-        const index = allTokens.findIndex(t => t.refresh_token === memToken.refresh_token);
+      // 如果指定了要更新的token，直接更新它
+      if (tokenToUpdate) {
+        const index = allTokens.findIndex(t => t.refresh_token === tokenToUpdate.refresh_token);
         if (index !== -1) {
-          const { sessionId, ...tokenToSave } = memToken;
+          const { sessionId, ...tokenToSave } = tokenToUpdate;
           allTokens[index] = tokenToSave;
         }
-      });
+      } else {
+        // 否则更新内存中的所有token
+        this.tokens.forEach(memToken => {
+          const index = allTokens.findIndex(t => t.refresh_token === memToken.refresh_token);
+          if (index !== -1) {
+            const { sessionId, ...tokenToSave } = memToken;
+            allTokens[index] = tokenToSave;
+          }
+        });
+      }
       
       fs.writeFileSync(this.filePath, JSON.stringify(allTokens, null, 2), 'utf8');
     } catch (error) {
@@ -210,7 +218,7 @@ class TokenManager {
         if (!token.projectId) {
           if (config.skipProjectIdFetch) {
             token.projectId = generateProjectId();
-            this.saveToFile();
+            this.saveToFile(token);
             log.info(`...${token.access_token.slice(-8)}: 使用随机生成的projectId: ${token.projectId}`);
           } else {
             try {
@@ -222,7 +230,7 @@ class TokenManager {
                 continue;
               }
               token.projectId = projectId;
-              this.saveToFile();
+              this.saveToFile(token);
             } catch (error) {
               log.error(`...${token.access_token.slice(-8)}: 获取projectId失败:`, error.message);
               this.currentIndex = (this.currentIndex + 1) % this.tokens.length;
@@ -281,6 +289,9 @@ class TokenManager {
       
       if (tokenData.projectId) {
         newToken.projectId = tokenData.projectId;
+      }
+      if (tokenData.email) {
+        newToken.email = tokenData.email;
       }
       
       allTokens.push(newToken);
@@ -345,11 +356,13 @@ class TokenManager {
       
       return allTokens.map(token => ({
         refresh_token: token.refresh_token,
+        access_token: token.access_token,
         access_token_suffix: token.access_token ? `...${token.access_token.slice(-8)}` : 'N/A',
         expires_in: token.expires_in,
         timestamp: token.timestamp,
         enable: token.enable !== false,
-        projectId: token.projectId || null
+        projectId: token.projectId || null,
+        email: token.email || null
       }));
     } catch (error) {
       log.error('获取Token列表失败:', error.message);

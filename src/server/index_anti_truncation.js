@@ -13,7 +13,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // --- 反截断配置 (Anti-Truncation Config) ---
-const DONE_MARKER = "[done]";
+const DONE_MARKER = "[DONE]";
+const DONE_MARKER_REGEX = new RegExp(`\\s*${DONE_MARKER}\\s*`, 'gi');
 const MAX_CONTINUATION_ATTEMPTS = config.tokenReuse.retryMaxCount || 3;
 const CONTINUATION_PROMPT = `
 请从刚才被截断的地方继续输出剩余的所有内容。
@@ -78,7 +79,7 @@ const endStream = (res, id, created, model, finish_reason) => {
 const removeDoneMarker = (text) => {
   if (!text) return text;
   // 匹配 [done]，忽略大小写，允许周围有空白
-  return text.replace(/\s*\[done\]\s*/gi, "");
+  return text.replace(DONE_MARKER_REGEX, "");
 };
 
 app.use(express.json({ limit: config.security.maxRequestSize }));

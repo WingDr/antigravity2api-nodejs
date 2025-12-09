@@ -159,7 +159,7 @@ class TokenManager {
 
   set429(token, errorBody={}) {
     const details = errorBody.error?.details;
-    const retryDelay = details?.find(detail => detail.retryDelay)?.retryDelay || "120s";
+    const retryDelay = details?.find(detail => detail.retryDelay)?.retryDelay || "20s";
     log.warn(`Token ...${token.projectId.slice(-8)} 因 429 被禁用${retryDelay}`)
     token.temp_forbidden = true;
     // 需要把带s后缀的时间转换成毫秒

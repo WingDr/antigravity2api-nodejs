@@ -188,7 +188,6 @@ app.post('/v1/chat/completions', async (req, res) => {
         endStream(res, id, created, model, 'stop');
       } else {
         // --- 文本模型流式处理（包含反截断逻辑）---
-        
         if (!shouldApplyAntiTruncation) {
           // 不启用反截断的普通流式处理
           let hasToolCall = false;

@@ -192,7 +192,7 @@ export async function generateAssistantResponse(requestBody, token, callback, re
     } catch (error) {
       // 如果是429或500，则要重试几次
       const status = error.response?.status || error.status || error.message?.error?.code || 'Unknown';
-      logger.info(`出现错误状态码${status}`);
+      logger.warn(`出现错误状态码${status}`);
       if ((status == 429 || status == 500) && retryCount < config.tokenReuse.retryMaxCount) {
         logger.info(`尝试重试，已重试${retryCount}次`);
         await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
@@ -213,10 +213,11 @@ export async function generateAssistantResponse(requestBody, token, callback, re
           .onError(reject);
       });
     } catch (error) {
-      // 如果是429要重试几次
-      const status = error.response?.status || error.status || 'Unknown';
+      // 如果是429或500，则要重试几次
+      const status = error.response?.status || error.status || error.message?.error?.code || 'Unknown';
+      logger.warn(`出现错误状态码${status}`);
       if ((status == 429 || status == 500) && retryCount < config.tokenReuse.retryMaxCount) {
-        logger.info(`出现错误状态码${status}，尝试重试...`);
+        logger.info(`尝试重试，已重试${retryCount}次`);
         await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
         await generateAssistantResponse(requestBody, token, callback, retryCount + 1);
       } else await handleApiError(error, token);

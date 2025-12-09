@@ -173,6 +173,7 @@ class TokenManager {
     }
     token.forbidden_until = Date.now() + delayMs;
     this.currentIndex = this.currentIndex % Math.max(this.tokens.length, 1);
+    this.saveToFile(token);
   }
 
   is429(token) {
@@ -187,6 +188,7 @@ class TokenManager {
     log.info('正在恢复因 429 被禁用的token...');
     token.temp_forbidden = false;
     token.forbidden_until = null;
+    this.saveToFile(token);
   }
 
   async getToken() {

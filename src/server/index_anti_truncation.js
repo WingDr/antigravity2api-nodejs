@@ -14,7 +14,7 @@ const app = express();
 
 // --- 反截断配置 (Anti-Truncation Config) ---
 const DONE_MARKER = "[DONE]";
-const DONE_MARKER_REGEX = new RegExp(`\\s*${DONE_MARKER}\\s*`, 'gi');
+const DONE_MARKER_REGEX = /\s*\[DONE\]\s*/gi;
 const MAX_CONTINUATION_ATTEMPTS = config.tokenReuse.retryMaxCount || 3;
 const CONTINUATION_PROMPT = `
 请从刚才被截断的地方继续输出剩余的所有内容。

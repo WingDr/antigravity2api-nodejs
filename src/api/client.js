@@ -315,7 +315,14 @@ export async function generateAssistantResponseNoStream(requestBody, token) {
       data = await response.json();
     }
   } catch (error) {
-    await handleApiError(error, token);
+    // 如果是429或500，则要重试几次
+    const status = error.response?.status || error.status || error.message?.error?.code || 'Unknown';
+    logger.warn(`出现错误状态码${status}`);
+    if ((status == 429 || status == 500) && retryCount < config.tokenReuse.retryMaxCount) {
+      logger.info(`尝试重试，已重试${retryCount}次`);
+      await new Promise(resolve => setTimeout(resolve, config.tokenReuse.retryDelay));
+      return await generateAssistantResponseNoStream(requestBody, token, retryCount + 1);
+    } else await handleApiError(error, token);
   }
   //console.log(JSON.stringify(data));
   // 解析响应内容

@@ -13,8 +13,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // --- 反截断配置 (Anti-Truncation Config) ---
-const DONE_MARKER = "[DONE]";
-const DONE_MARKER_REGEX = /\s*\[DONE\]\s*/gi;
+const DONE_MARKER = "[done]";
+const DONE_MARKER_REGEX = /\s*\[done\]\s*/gi;
 const MAX_CONTINUATION_ATTEMPTS = config.tokenReuse.retryMaxCount || 3;
 const CONTINUATION_PROMPT = `
 请从刚才被截断的地方继续输出剩余的所有内容。

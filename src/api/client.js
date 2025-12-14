@@ -114,7 +114,7 @@ function parseAndEmitStreamChunk(line, state, callback) {
     
     if (parts) {
       for (const part of parts) {
-        logger.info(`正在思考：${state.thinkingStarted}，处理部分内容: ${JSON.stringify(part)}`);
+        //logger.info(`正在思考：${state.thinkingStarted}，处理部分内容: ${JSON.stringify(part)}`);
         if (part.thought === true) {
           // 思维链内容
           if (!state.thinkingStarted) {
